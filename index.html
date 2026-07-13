@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>えほんだな</title>
+<!-- ===== PWA設定（ホーム画面アイコン対応） ===== -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6ba368">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="えほんだな">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<style>
+  :root{
+    --bg:#f3f7ee; --card:#ffffff; --ink:#3f4a37; --sub:#7d8a72;
+    --accent:#6ba368; --accent2:#e8845e; --line:#e3ead9;
+    --shadow:0 4px 14px rgba(70,90,55,.12);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--ink); min-height:100vh;
+    font-family:"Hiragino Maru Gothic ProN","Hiragino Kaku Gothic ProN","BIZ UDGothic",sans-serif;
+    touch-action:manipulation; -webkit-user-select:none; user-select:none;
+  }
+  button{font-family:inherit; cursor:pointer; border:none;}
+
+  header{
+    display:flex; align-items:center; gap:10px;
+    padding:16px 20px; background:var(--card); box-shadow:var(--shadow);
+    position:sticky; top:0; z-index:5;
+  }
+  header .logo{font-size:28px;}
+  header h1{font-size:22px; margin:0; letter-spacing:1px;}
+  header .spacer{flex:1;}
+  .gear{
+    background:transparent; font-size:24px; color:var(--sub); padding:4px 8px; border-radius:10px;
+  }
+  .gear.on{background:#eef3e6; color:var(--accent);}
+
+  .wrap{max-width:1000px; margin:0 auto; padding:20px;}
+
+  /* おとなバー（せいりモード時のみ） */
+  #adminBar{
+    display:none; gap:10px; flex-wrap:wrap; margin-bottom:16px;
+    background:#eef3e6; border:1px solid #cfe0c0; border-radius:14px; padding:12px 14px;
+  }
+  #adminBar.on{display:flex; align-items:center;}
+  #adminBar .note{font-size:12.5px; color:#5b7a4d; line-height:1.6; flex:1; min-width:180px;}
+  .btn{
+    border-radius:14px; padding:11px 16px; font-size:15px; font-weight:700;
+    background:#e7efdd; color:var(--ink); box-shadow:var(--shadow);
+  }
+  .btn:active{transform:scale(.97);}
+  .btn.primary{background:var(--accent); color:#fff;}
+
+  /* 本棚 */
+  .shelf{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:18px;}
+  @media (min-width:640px){ .shelf{grid-template-columns:repeat(auto-fill,minmax(190px,1fr));} }
+  .bk{
+    background:var(--card); border-radius:16px; box-shadow:var(--shadow);
+    overflow:hidden; cursor:pointer; position:relative; transition:transform .12s;
+    border:3px solid transparent;
+  }
+  .bk:active{transform:scale(.97);}
+  .bk .cover-box{ border-radius:0; }
+  .bk .meta{ padding:8px 10px 10px; }
+  .bk .meta .pg{ font-size:11.5px; color:var(--sub); }
+  .bk .trash{
+    display:none; position:absolute; top:6px; right:6px; z-index:2;
+    background:rgba(192,86,74,.92); color:#fff; border-radius:50%;
+    width:34px; height:34px; font-size:16px; line-height:1;
+  }
+  .shelf.admin .bk .trash{ display:block; }
+  .shelf.admin .bk{ border-color:#cfe0c0; }
+
+  .empty{
+    text-align:center; color:var(--sub); padding:60px 20px; line-height:2;
+    background:var(--card); border-radius:16px; box-shadow:var(--shadow);
+  }
+  .empty .big{font-size:48px; margin-bottom:8px;}
+
+  /* 表紙（共通コンポーネント） */
+  .cover-box{ position:relative; width:100%; aspect-ratio:4/3; overflow:hidden; background:#f5ede2; container-type:inline-size; }
+  .cover-art{ position:absolute; inset:0; }
+  .cover-art img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .cover-art.noimg{ background:linear-gradient(160deg,#fdf3e3,#f2cf9f); }
+  .cover-art.noimg::after{ content:"📖"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:22%; opacity:.3; }
+  .cover-scrim{ position:absolute; inset:0; background:linear-gradient(to top, rgba(50,45,30,.5), rgba(50,45,30,0) 55%); }
+  .cover-frame{ position:absolute; inset:3.5%; border:0.9% solid rgba(255,255,255,.8); border-radius:9px; }
+  .cover-plate{
+    position:absolute; left:7%; right:7%; bottom:7%;
+    background:rgba(255,253,247,.93); border-radius:12px; padding:5% 5%;
+    text-align:center; box-shadow:0 4px 14px rgba(0,0,0,.22);
+  }
+  .cover-plate .ctitle{ font-weight:800; color:#3f4a37; line-height:1.35; letter-spacing:.5px; font-size:clamp(15px,5.6cqw,30px); }
+  .cover-plate .cbyline{ margin-top:5%; font-size:clamp(9px,2.6cqw,14px); color:#7d8a72; }
+  .cover-plate::before{ content:"✦"; color:var(--accent2); font-size:clamp(10px,2.8cqw,16px); display:block; margin-bottom:2%; }
+
+  /* リーダー */
+  #reader{
+    position:fixed; inset:0; background:#2c2a22; z-index:50; display:none;
+    flex-direction:column; align-items:center; justify-content:center; padding:14px;
+  }
+  #reader.open{display:flex;}
+  .rd-stage{
+    width:min(96vw, calc((100vh - 130px) * 4 / 3)); max-width:1100px;
+    background:#fffdf7; border-radius:18px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,.45);
+    display:flex; flex-direction:column; position:relative;
+  }
+  .rd-cover{ display:none; width:100%; }
+  .rd-img{ width:100%; aspect-ratio:4/3; background:#f5ede2; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .rd-img img{ width:100%; height:100%; object-fit:contain; display:block; }
+  .rd-img .noimg{ font-size:18px; color:#b9a893; }
+  .rd-text{ padding:16px 22px 20px; font-size:clamp(17px,2.8vw,26px); line-height:1.9; min-height:76px; letter-spacing:.5px; }
+  .rd-stage.anim .rd-inner, .rd-stage.anim .rd-cover{ animation:pagein .35s ease; }
+  .rd-stage.animL .rd-inner, .rd-stage.animL .rd-cover{ animation:pageinL .35s ease; }
+  @keyframes pagein{ from{opacity:0; transform:translateX(28px);} to{opacity:1; transform:none;} }
+  @keyframes pageinL{ from{opacity:0; transform:translateX(-28px);} to{opacity:1; transform:none;} }
+  .rd-nav{ position:absolute; top:0; bottom:0; width:36%; }
+  .rd-nav.left{ left:0; } .rd-nav.right{ right:0; }
+  .rd-bar{ display:flex; align-items:center; gap:16px; margin-top:16px; color:#e8dcc9; }
+  .rd-bar .btn{ background:rgba(255,255,255,.16); color:#fff; box-shadow:none; font-size:17px; padding:12px 20px; }
+  .rd-bar .pageno{ font-size:15px; letter-spacing:1px; min-width:72px; text-align:center; }
+
+  #toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:rgba(50,55,40,.92); color:#fff; padding:10px 22px; border-radius:999px;
+    font-size:14px; opacity:0; pointer-events:none; transition:opacity .25s; z-index:99;
+  }
+  #toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">📚</span>
+  <h1>えほんだな</h1>
+  <span class="spacer"></span>
+  <button class="gear" id="gear" title="おとなメニュー">⚙</button>
+</header>
+
+<div class="wrap">
+  <div id="adminBar">
+    <button class="btn primary" id="btnImport">📥 えほんを よみこむ</button>
+    <span class="note">音声づくり版で書き出した「.ehon.json」を選ぶと本棚に追加されます（複数まとめて選べます）。🗑で消せます。</span>
+  </div>
+  <div class="shelf" id="shelf"></div>
+</div>
+
+<!-- リーダー -->
+<div id="reader">
+  <div class="rd-stage" id="rdStage">
+    <div class="rd-cover cover-box" id="rdCover"></div>
+    <div class="rd-inner">
+      <div class="rd-img" id="rdImg"></div>
+      <div class="rd-text" id="rdText"></div>
+    </div>
+    <div class="rd-nav left" id="rdPrev"></div>
+    <div class="rd-nav right" id="rdNext"></div>
+  </div>
+  <div class="rd-bar">
+    <button class="btn" id="rdSpeak">🔊 よみあげ</button>
+    <span class="pageno" id="rdPageNo"></span>
+    <button class="btn" id="rdClose">✕ とじる</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="fileBook" accept=".json,application/json" multiple style="display:none">
+
+<script>
+"use strict";
+
+/* ============================================================
+   えほんだな — 読む専用の本棚アプリ
+   絵本データ: {id,title,hero:{name},cover?:{img,byline,bg},pages:[{img,text,audio}]}
+   音声・表紙入りの .ehon.json を集めて、タブレット/スマホで読む。編集機能なし。
+   ============================================================ */
+
+const $ = id => document.getElementById(id);
+function esc(s){ return (s || "").replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c])); }
+function heroText(book, text){ return (text || "").split("{なまえ}").join(book.hero?.name || ""); }
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove("show"), 1900); }
+
+/* ---------- IndexedDB ---------- */
+const DB_NAME = "ehon_dana", STORE = "books";
+let _db = null;
+function openDB(){
+  return new Promise((res, rej) => {
+    if (_db) return res(_db);
+    const rq = indexedDB.open(DB_NAME, 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore(STORE, { keyPath: "id" });
+    rq.onsuccess = () => { _db = rq.result; res(_db); };
+    rq.onerror = () => rej(rq.error);
+  });
+}
+async function dbAll(){ const db = await openDB(); return new Promise((res, rej) => { const rq = db.transaction(STORE).objectStore(STORE).getAll(); rq.onsuccess = () => res(rq.result || []); rq.onerror = () => rej(rq.error); }); }
+async function dbPut(b){ const db = await openDB(); return new Promise((res, rej) => { const tx = db.transaction(STORE, "readwrite"); tx.objectStore(STORE).put(b); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); }
+async function dbDel(id){ const db = await openDB(); return new Promise((res, rej) => { const tx = db.transaction(STORE, "readwrite"); tx.objectStore(STORE).delete(id); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); }
+
+/* ---------- 表紙（共通） ---------- */
+function coverImgOf(b){ return b.cover?.img || b.pages.find(p => p.img)?.img || null; }
+function coverHTML(book){
+  const img = coverImgOf(book);
+  const title = esc(heroText(book, book.title) || "（タイトルなし）");
+  const byline = esc(book.cover?.byline || "");
+  const bg = book.cover?.bg;
+  return (img
+      ? '<div class="cover-art"><img src="' + img + '" alt=""></div>'
+      : '<div class="cover-art noimg"' + (bg ? ' style="background:' + bg + '"' : "") + "></div>") +
+    '<div class="cover-scrim"></div><div class="cover-frame"></div>' +
+    '<div class="cover-plate"><div class="ctitle">' + title + "</div>" +
+      (byline ? '<div class="cbyline">' + byline + "</div>" : "") + "</div>";
+}
+
+/* ---------- 本棚 ---------- */
+let adminMode = false;
+async function renderShelf(){
+  const books = (await dbAll()).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const sh = $("shelf");
+  sh.className = "shelf" + (adminMode ? " admin" : "");
+  sh.innerHTML = "";
+  if (!books.length) {
+    sh.className = "";
+    sh.innerHTML = '<div class="empty"><div class="big">📚</div>まだ えほんが ありません。<br>' +
+      '右うえの <b>⚙</b> →「えほんを よみこむ」から、<br>おうちの ひとが つくった えほんを ふやせます。</div>';
+    return;
+  }
+  for (const b of books) {
+    const el = document.createElement("div");
+    el.className = "bk";
+    el.innerHTML =
+      '<div class="cover-box">' + coverHTML(b) + "</div>" +
+      '<div class="meta"><div class="pg">' + b.pages.length + "ページ" +
+        (b.pages.some(p => p.audio) ? "　🔊こえ入り" : "") + "</div></div>" +
+      '<button class="trash" title="消す">🗑</button>';
+    el.querySelector(".cover-box").onclick = () => openReader(b);
+    el.querySelector(".meta").onclick = () => openReader(b);
+    el.querySelector(".trash").onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm("「" + (heroText(b, b.title) || "この えほん") + "」を 本棚から けしますか？")) return;
+      await dbDel(b.id); renderShelf();
+    };
+    sh.appendChild(el);
+  }
+}
+
+/* ---------- 音声再生（Audio要素1つを使い回し=iOS対策） ---------- */
+const audioEl = new Audio();
+function playAudio(src){ speechSynthesis.cancel(); audioEl.pause(); audioEl.src = src; audioEl.currentTime = 0; audioEl.play().catch(() => {}); }
+function stopAudio(){ audioEl.pause(); speechSynthesis.cancel(); }
+
+/* ---------- リーダー（表紙→ページ） ---------- */
+let rdBook = null, rdIdx = 0;
+function openReader(book){ rdBook = book; rdIdx = -1; $("reader").classList.add("open"); renderReaderPage(1); }
+function renderReaderPage(dir){
+  const st = $("rdStage"), inner = st.querySelector(".rd-inner"), cov = $("rdCover");
+  st.classList.remove("anim", "animL"); void st.offsetWidth;
+  st.classList.add(dir < 0 ? "animL" : "anim");
+  if (rdIdx === -1) {
+    inner.style.display = "none"; cov.style.display = "block";
+    cov.innerHTML = coverHTML(rdBook);
+    $("rdPageNo").textContent = "ひょうし";
+    return;
+  }
+  inner.style.display = ""; cov.style.display = "none";
+  const p = rdBook.pages[rdIdx], imgBox = $("rdImg");
+  imgBox.innerHTML = "";
+  if (p.img) { const im = new Image(); im.src = p.img; im.alt = ""; imgBox.appendChild(im); }
+  else imgBox.innerHTML = '<div class="noimg">（え が ありません）</div>';
+  $("rdText").textContent = heroText(rdBook, p.text);
+  $("rdPageNo").textContent = (rdIdx + 1) + " / " + rdBook.pages.length;
+  if (p.audio) playAudio(p.audio);
+}
+function rdMove(d){ stopAudio(); const n = rdIdx + d; if (n < -1 || n >= rdBook.pages.length) return; rdIdx = n; renderReaderPage(d); }
+$("rdNext").onclick = () => rdMove(1);
+$("rdPrev").onclick = () => rdMove(-1);
+$("rdClose").onclick = () => { stopAudio(); $("reader").classList.remove("open"); rdBook = null; };
+$("rdSpeak").onclick = () => {
+  if (!rdBook) return;
+  if (rdIdx >= 0 && rdBook.pages[rdIdx].audio) { playAudio(rdBook.pages[rdIdx].audio); return; }
+  const text = rdIdx === -1 ? heroText(rdBook, rdBook.title) : heroText(rdBook, rdBook.pages[rdIdx].text);
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text); u.lang = "ja-JP"; u.rate = 0.85;
+  speechSynthesis.speak(u);
+};
+let tX = null;
+$("rdStage").addEventListener("touchstart", e => { tX = e.touches[0].clientX; }, { passive: true });
+$("rdStage").addEventListener("touchend", e => {
+  if (tX == null) return;
+  const dx = e.changedTouches[0].clientX - tX; tX = null;
+  if (Math.abs(dx) > 40) rdMove(dx < 0 ? 1 : -1);
+}, { passive: true });
+document.addEventListener("keydown", e => {
+  if (!$("reader").classList.contains("open")) return;
+  if (e.key === "ArrowRight" || e.key === " ") rdMove(1);
+  else if (e.key === "ArrowLeft") rdMove(-1);
+  else if (e.key === "Escape") $("rdClose").click();
+});
+
+/* ---------- おとなメニュー（せいりモード） ---------- */
+$("gear").onclick = () => {
+  adminMode = !adminMode;
+  $("gear").classList.toggle("on", adminMode);
+  $("adminBar").classList.toggle("on", adminMode);
+  renderShelf();
+};
+
+/* ---------- 読み込み（.ehon.json・複数可） ---------- */
+$("btnImport").onclick = () => { $("fileBook").value = ""; $("fileBook").click(); };
+$("fileBook").addEventListener("change", async e => {
+  const files = [...e.target.files];
+  let ok = 0;
+  for (const f of files) {
+    try {
+      const data = JSON.parse(await f.text());
+      const b = data.book || data;
+      if (!Array.isArray(b.pages)) throw 0;
+      if (!b.id) b.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      b.updatedAt = b.updatedAt || Date.now();
+      await dbPut(b); ok++;
+    } catch { /* skip invalid */ }
+  }
+  renderShelf();
+  toast(ok ? ok + "さつ よみこみました" : "えほんファイルとして読み込めませんでした");
+});
+
+/* ---------- 同梱の絵本を取り込む（books/index.json） ----------
+   music/audio入りの完成絵本を books/ に置き、books/index.json に列挙すると、
+   初回に自動で本棚へ入る（id重複はスキップ／bundled書籍は新しければ更新） */
+async function loadBundled(){
+  try {
+    const res = await fetch("books/index.json", { cache: "no-store" });
+    if (!res.ok) return;
+    const j = await res.json();
+    const files = Array.isArray(j) ? j : (j.files || []);
+    const existing = new Map((await dbAll()).map(b => [b.id, b]));
+    for (const f of files) {
+      try {
+        const r = await fetch("books/" + f, { cache: "no-store" });
+        if (!r.ok) continue;
+        const data = await r.json();
+        const b = data.book || data;
+        if (!b || !Array.isArray(b.pages)) continue;
+        b._src = "bundle";
+        const cur = existing.get(b.id);
+        // 未所持、または同梱本が更新されていれば入れ替え（手動取り込み本は触らない）
+        if (!cur || (cur._src === "bundle" && (b.updatedAt || 0) > (cur.updatedAt || 0))) {
+          await dbPut(b);
+        }
+      } catch { /* skip */ }
+    }
+  } catch { /* books/ が無ければ何もしない */ }
+}
+
+/* ---------- ようこそ絵本（本棚が空のときだけ入れる） ---------- */
+function svgURI(s){ return "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">' + s + "</svg>"); }
+function shelfSvg(){
+  return '<rect width="800" height="600" fill="#eef3e6"/>' +
+    '<rect x="120" y="120" width="560" height="360" rx="16" fill="#c9a06a"/>' +
+    '<rect x="120" y="250" width="560" height="18" fill="#a8824f"/><rect x="120" y="380" width="560" height="18" fill="#a8824f"/>' +
+    ['#e8845e','#7fb069','#7fb3d9','#f4c95d','#c98fd0'].map((c,i)=>'<rect x="'+(150+i*95)+'" y="150" width="70" height="100" rx="6" fill="'+c+'"/>').join("") +
+    ['#7fb3d9','#e8845e','#f4c95d','#7fb069'].map((c,i)=>'<rect x="'+(170+i*110)+'" y="285" width="80" height="95" rx="6" fill="'+c+'"/>').join("") +
+    '<circle cx="660" cy="90" r="40" fill="#ffd97a"/>';
+}
+async function seedWelcome(){
+  const pageBg = (from,to)=> '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+from+'"/><stop offset="1" stop-color="'+to+'"/></linearGradient></defs><rect width="800" height="600" fill="url(#g)"/>';
+  const book = {
+    id: "welcome-ehondana",
+    title: "ようこそ えほんだなへ",
+    hero: { name: "" },
+    cover: { byline: "えほんだな" },
+    pages: [
+      { img: svgURI(shelfSvg()), text: "ここは えほんの ほんだな。すきな えほんを タップして よもう。", audio: null },
+      { img: svgURI(pageBg("#fdf3e3","#f2cf9f") + '<circle cx="400" cy="300" r="120" fill="#fff" opacity=".7"/><text x="400" y="330" font-size="90" text-anchor="middle">📖</text>'), text: "えを タップ、または よこに スワイプで ページが すすむよ。", audio: null },
+      { img: svgURI(pageBg("#dbeaf6","#a9cbe6") + '<text x="400" y="330" font-size="110" text-anchor="middle">🔊</text>'), text: "こえ入りの えほんは、ページを めくると じどうで よんでくれるよ。", audio: null }
+    ],
+    createdAt: Date.now(), updatedAt: Date.now()
+  };
+  await dbPut(book);
+}
+
+/* ---------- init ---------- */
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
+}
+(async function init(){
+  await loadBundled();
+  if (!(await dbAll()).length) await seedWelcome();
+  renderShelf();
+})();
+</script>
+</body>
+</html>
