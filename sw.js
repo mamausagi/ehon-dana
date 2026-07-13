@@ -1,7 +1,7 @@
 // えほんだな service worker
 // シェル＋同梱絵本(books/)をキャッシュ。絵本データ本体はIndexedDB。
 // デプロイ時は CACHE の版数を必ずバンプすること（deploy-appスキルが自動）
-const CACHE = "ehon-dana-v2";
+const CACHE = "ehon-dana-v3";
 const SHELL = [
   "./",
   "./index.html",
