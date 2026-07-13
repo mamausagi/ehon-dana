@@ -100,6 +100,18 @@
   .cover-plate .ctitle{ font-weight:800; color:#3f4a37; line-height:1.35; letter-spacing:.5px; font-size:clamp(15px,5.6cqw,30px); }
   .cover-plate .cbyline{ margin-top:5%; font-size:clamp(9px,2.6cqw,14px); color:#7d8a72; }
   .cover-plate::before{ content:"✦"; color:var(--accent2); font-size:clamp(10px,2.8cqw,16px); display:block; margin-bottom:2%; }
+  /* タイトル位置・札の透明度・文字のかたち（ehon-studioと共通） */
+  .cover-plate.pos-top{ bottom:auto; top:7%; }
+  .cover-plate.pos-center{ bottom:auto; top:50%; transform:translateY(-50%); }
+  .cover-plate.plate-soft{ background:rgba(255,253,247,.55); box-shadow:0 3px 12px rgba(0,0,0,.16); }
+  .cover-plate.plate-none{ background:transparent; box-shadow:none; padding:2% 4%; }
+  .cover-plate.plate-none .ctitle{ color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.75), 0 0 3px rgba(0,0,0,.55); }
+  .cover-plate.plate-none .cbyline{ color:#f6f0e6; text-shadow:0 1px 6px rgba(0,0,0,.7); }
+  .cover-plate.plate-none::before{ text-shadow:0 1px 5px rgba(0,0,0,.6); }
+  .font-maru{ font-family:"Hiragino Maru Gothic ProN","Hiragino Maru Gothic Pro",sans-serif; }
+  .font-kyokasho{ font-family:"YuKyokasho Yoko","YuKyokasho","UD Digi Kyokasho NP-R",serif; }
+  .font-mincho{ font-family:"Hiragino Mincho ProN","YuMincho","Yu Mincho",serif; }
+  .font-gothic{ font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","BIZ UDGothic",sans-serif; }
 
   /* リーダー */
   #reader{
@@ -210,11 +222,14 @@ function coverHTML(book){
   const title = esc(heroText(book, book.title) || "（タイトルなし）");
   const byline = esc(book.cover?.byline || "");
   const bg = book.cover?.bg;
+  const pos = book.cover?.pos || "bottom";
+  const font = book.cover?.font || "maru";
+  const plate = book.cover?.plate || "solid";
   return (img
       ? '<div class="cover-art"><img src="' + img + '" alt=""></div>'
       : '<div class="cover-art noimg"' + (bg ? ' style="background:' + bg + '"' : "") + "></div>") +
     '<div class="cover-scrim"></div><div class="cover-frame"></div>' +
-    '<div class="cover-plate"><div class="ctitle">' + title + "</div>" +
+    '<div class="cover-plate pos-' + pos + " plate-" + plate + " font-" + font + '"><div class="ctitle">' + title + "</div>" +
       (byline ? '<div class="cbyline">' + byline + "</div>" : "") + "</div>";
 }
 
